@@ -391,52 +391,139 @@ function Interface:CreateTab(name)
         end
 
         function Section:AddDropdown(text, options, isMulti, callback)
-            local selected = {}
-            
+            local Dropdown = {
+                Open = false,
+                Selected = {},
+                Options = options or {}
+            }
+
             local DropFrame = Instance.new("Frame")
-            DropFrame.Size = UDim2.new(1, 0, 0, 30)
+            DropFrame.Size = UDim2.new(1, 0, 0, 38)
             DropFrame.BackgroundTransparency = 1
+            DropFrame.ZIndex = 5 -- Базовый уровень
             DropFrame.Parent = SectionContent
 
-            local DropButton = Instance.new("TextButton")
-            DropButton.Size = UDim2.new(1, 0, 0, 25)
-            DropButton.BackgroundColor3 = Interface.Theme.ElementBG
-            DropButton.BorderColor3 = Interface.Theme.Outline
-            DropButton.Font = Interface.Theme.Font
-            DropButton.Text = text
-            DropButton.TextColor3 = Interface.Theme.TextActive
-            DropButton.Parent = DropFrame
+            local Label = Instance.new("TextLabel")
+            Label.Text = text
+            Label.Size = UDim2.new(1, 0, 0, 15)
+            Label.BackgroundTransparency = 1
+            Label.TextColor3 = Interface.Theme.TextInactive
+            Label.Font = Interface.Theme.Font
+            Label.TextSize = 13
+            Label.TextXAlignment = Enum.TextXAlignment.Left
+            Label.Parent = DropFrame
 
-            local ListFrame = Instance.new("ScrollingFrame")
-            ListFrame.Size = UDim2.new(1, 0, 0, 100)
-            ListFrame.Position = UDim2.new(0, 0, 0, 30)
-            ListFrame.Visible = false
-            ListFrame.BackgroundColor3 = Interface.Theme.Main
-            ListFrame.Parent = DropFrame
+            local MainBtn = Instance.new("TextButton")
+            MainBtn.Size = UDim2.new(1, 0, 0, 18)
+            MainBtn.Position = UDim2.new(0, 0, 0, 20)
+            MainBtn.BackgroundColor3 = Interface.Theme.ElementBG
+            MainBtn.BorderColor3 = Interface.Theme.Outline
+            MainBtn.Text = ""
+            MainBtn.AutoButtonColor = false
+            MainBtn.Parent = DropFrame
 
-            DropButton.MouseButton1Click:Connect(function()
-                ListFrame.Visible = not ListFrame.Visible
-            end)
+            local ValueLabel = Instance.new("TextLabel")
+            ValueLabel.Size = UDim2.new(1, -20, 1, 0)
+            ValueLabel.Position = UDim2.new(0, 8, 0, 0)
+            ValueLabel.Text = "None"
+            ValueLabel.TextColor3 = Interface.Theme.TextActive
+            ValueLabel.TextSize = 12
+            ValueLabel.Font = Interface.Theme.Font
+            ValueLabel.TextXAlignment = Enum.TextXAlignment.Left
+            ValueLabel.BackgroundTransparency = 1
+            ValueLabel.Parent = MainBtn
 
-            for _, opt in pairs(options) do
-                local OptBtn = Instance.new("TextButton")
-                OptBtn.Size = UDim2.new(1, 0, 0, 20)
-                OptBtn.Text = opt
-                OptBtn.Parent = ListFrame
+            local Arrow = Instance.new("TextLabel")
+            Arrow.Size = UDim2.new(0, 20, 1, 0)
+            Arrow.Position = UDim2.new(1, -20, 0, 0)
+            Arrow.Text = "+"
+            Arrow.TextColor3 = Interface.Theme.TextInactive
+            Arrow.TextSize = 14
+            Arrow.Font = Interface.Theme.Font
+            Arrow.BackgroundTransparency = 1
+            Arrow.Parent = MainBtn
+
+            local Container = Instance.new("ScrollingFrame")
+            Container.Size = UDim2.new(1, 0, 0, 0)
+            Container.Position = UDim2.new(0, 0, 1, 1)
+            Container.BackgroundColor3 = Interface.Theme.ElementBG
+            Container.BorderColor3 = Interface.Theme.Outline
+            Container.Visible = false
+            Container.ZIndex = 10
+            Container.ScrollBarThickness = 2
+            Container.ScrollBarImageColor3 = Interface.Theme.Accent
+            Container.BorderSizePixel = 1
+            Container.AutomaticCanvasSize = Enum.AutomaticSize.Y
+            Container.CanvasSize = UDim2.new(0,0,0,0)
+            Container.Parent = MainBtn
+
+            local ListLayout = Instance.new("UIListLayout")
+            ListLayout.Parent = Container
+
+            local function updateValueText()
+                local selectedList = {}
+                for opt, val in pairs(Dropdown.Selected) do
+                    if val then table.insert(selectedList, opt) end
+                end
                 
+                if #selectedList == 0 then
+                    ValueLabel.Text = "None"
+                elseif #selectedList == 1 then
+                    ValueLabel.Text = selectedList[1]
+                else
+                    ValueLabel.Text = "Multiple..."
+                end
+            end
+
+            local function toggleDropdown()
+                Dropdown.Open = not Dropdown.Open
+                Container.Visible = Dropdown.Open
+                DropFrame.ZIndex = Dropdown.Open and 50 or 5
+                Arrow.Text = Dropdown.Open and "-" or "+"
+                
+                if Dropdown.Open then
+                    -- Рассчитываем высоту (максимум 120 пикселей)
+                    local count = #options
+                    local height = math.min(count * 18, 120)
+                    Container.Size = UDim2.new(1, 0, 0, height)
+                end
+            end
+
+            for _, optName in pairs(options) do
+                local OptBtn = Instance.new("TextButton")
+                OptBtn.Size = UDim2.new(1, 0, 0, 18)
+                OptBtn.BackgroundColor3 = Interface.Theme.ElementBG
+                OptBtn.BorderSizePixel = 0
+                OptBtn.Text = "  " .. optName
+                OptBtn.Font = Interface.Theme.Font
+                OptBtn.TextSize = 12
+                OptBtn.TextColor3 = Interface.Theme.TextInactive
+                OptBtn.TextXAlignment = Enum.TextXAlignment.Left
+                OptBtn.ZIndex = 11
+                OptBtn.AutoButtonColor = false
+                OptBtn.Parent = Container
+
                 OptBtn.MouseButton1Click:Connect(function()
                     if isMulti then
-                        selected[opt] = not selected[opt]
-                        OptBtn.TextColor3 = selected[opt] and Interface.Theme.Accent or Interface.Theme.TextActive
+                        Dropdown.Selected[optName] = not Dropdown.Selected[optName]
+                        OptBtn.TextColor3 = Dropdown.Selected[optName] and Interface.Theme.Accent or Interface.Theme.TextInactive
+                        callback(Dropdown.Selected)
                     else
-                        selected = {[opt] = true}
-                        ListFrame.Visible = false
+                        Dropdown.Selected = {[optName] = true}
+                        for _, child in pairs(Container:GetChildren()) do
+                            if child:IsA("TextButton") then child.TextColor3 = Interface.Theme.TextInactive end
+                        end
+                        OptBtn.TextColor3 = Interface.Theme.Accent
+                        toggleDropdown()
+                        callback(optName)
                     end
-                    callback(selected)
+                    updateValueText()
                 end)
             end
-        end
 
+            local dropConn = MainBtn.MouseButton1Click:Connect(toggleDropdown)
+            table.insert(Interface.Connections, dropConn)
+        end
         return Section
     end
 
